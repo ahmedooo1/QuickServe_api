@@ -2,11 +2,13 @@ from fastapi import APIRouter, HTTPException
 from infrastructure.repositories import InMemoryOrderRepository
 from application.dto import OrderDTO
 from domain.models import Order
-from typing import List 
+from typing import List
+
 router = APIRouter()
 
-# Repository
+# Repositories
 order_repository = InMemoryOrderRepository()
+
 
 @router.post("/orders", response_model=OrderDTO)
 def create_order(order: OrderDTO):

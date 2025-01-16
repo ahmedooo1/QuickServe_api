@@ -1,42 +1,55 @@
-from fastapi import APIRouter, HTTPException
-from infrastructure.repositories import InMemoryUserRepository
-from application.dto import UserDTO
-from domain.models import User
-from typing import List 
+from fastapi import APIRouter, HTTPException, Depends, status
+from sqlalchemy.orm import Session
+from typing import List, Dict
+from infrastructure.db import get_db
+from application.dto import UserDTO, OrderDTO, LoginDTO, UserResponseDTO
+from domain.models import User, Order
+from application.utils import hash_password, verify_password, create_access_token
+
 router = APIRouter()
 
-# Repository
-user_repository = InMemoryUserRepository()
+@router.post("/users", response_model=UserResponseDTO)
+def create_user(user: UserDTO, db: Session = Depends(get_db)):
+    try:
+        existing_user = db.query(User).filter(User.email == user.email).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already registered")
 
-@router.post("/users", response_model=UserDTO)
-def create_user(user: UserDTO):
-    new_user = User(user_id=user.user_id, name=user.name)
-    return user_repository.create_user(new_user)
+        hashed_password = hash_password(user.password)
 
+        # Créer un nouvel utilisateur
+        new_user = User(name=user.name, email=user.email, hashed_password=hashed_password)
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
 
-@router.get("/users/{user_id}", response_model=UserDTO)
-def get_user(user_id: str):
-    user = user_repository.get_user_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
+        # Renvoie l'objet UserResponseDTO sans le mot de passe
+        return UserResponseDTO(id=new_user.id, name=new_user.name, email=new_user.email)
 
-
-@router.put("/users/{user_id}", response_model=UserDTO)
-def update_user(user_id: str, user: UserDTO):
-    existing_user = user_repository.get_user_by_id(user_id)
-    if not existing_user:
-        raise HTTPException(status_code=404, detail="User not found")
-    updated_user = User(user_id=user.user_id, name=user.name)
-    return user_repository.update_user(user_id, updated_user)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 
-@router.delete("/users/{user_id}")
-def delete_user(user_id: str):
-    user_repository.delete_user(user_id)
-    return {"message": "User deleted successfully"}
+
+@router.post("/login", response_model=Dict[str, str])
+def login(login_data: LoginDTO, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == login_data.email).first()
+    if not user or not verify_password(login_data.password, user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+    access_token = create_access_token(data={"sub": user.email})
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.get("/users", response_model=List[UserDTO])
-def list_users():
-    return user_repository.list_users()
+def list_users(db: Session = Depends(get_db)):
+    users = db.query(User).all()
+    return [UserDTO(id=user.id, name=user.name, email=user.email) for user in users]
+
+
+@router.get("/orders/{order_id}", response_model=OrderDTO)
+def get_order(order_id: str, db: Session = Depends(get_db)):
+    order = db.query(Order).filter(Order.order_id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return OrderDTO(order_id=order.order_id, user_id=order.user_id, details=order.details)

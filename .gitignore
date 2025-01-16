@@ -1,0 +1,42 @@
+config.py
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.db
+*.sqlite3
+*.log
+*.env
+
+# Dossiers de virtualenv
+venv/
+env/
+*.venv/
+.venv/
+
+# fichiers de configuration IDE
+.idea/
+.vscode/
+
+# fichiers de configuration d'éditeur
+*.sublime-workspace
+*.sublime-project
+
+# Fichiers de configuration de cache de Pytest
+.cache/
+nosetests.xml
+coverage.xml
+*.cover
+
+# Migration Alembic (si non nécessaire dans le contrôle de version)
+alembic/versions/
+
+# Dossiers générés pour la documentation
+docs/_build/
+build/
+dist/
+
+# Fichiers spécifiques aux systèmes d'exploitation
+.DS_Store
+Thumbs.db
