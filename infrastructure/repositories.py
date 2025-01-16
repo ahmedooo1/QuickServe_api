@@ -27,26 +27,12 @@ class InMemoryUserRepository:
             del self.users[user_id]
 
 # InMemoryOrderRepository
-class InMemoryOrderRepository:
-    def __init__(self):
-        self.orders = {}
+from sqlalchemy.orm import Session
+from domain.models import Order
 
-    def create_order(self, order: Order) -> Order:
-        self.orders[order.order_id] = order
-        return order
+class OrderRepository:
+    def list_orders(self, db: Session) -> List[Order]:
+        return db.query(Order).all()  # Ou la logique de récupération des commandes
 
-    def get_order_by_id(self, order_id: str) -> Order:
-        return self.orders.get(order_id)
-
-    def list_orders(self) -> List[Order]:
-        return list(self.orders.values())
-
-    def update_order(self, order_id: str, order: Order) -> Order:
-        if order_id in self.orders:
-            self.orders[order_id] = order
-            return order
-        return None
-
-    def delete_order(self, order_id: str) -> None:
-        if order_id in self.orders:
-            del self.orders[order_id]
+    def get_order_by_id(self, order_id: str, db: Session) -> Order:
+        return db.query(Order).filter(Order.order_id == order_id).first()
