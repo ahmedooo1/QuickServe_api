@@ -8,7 +8,11 @@ from application.utils import hash_password, verify_password, create_access_toke
 
 router = APIRouter()
 
-@router.post("/users", response_model=UserResponseDTO)
+user_router = APIRouter(prefix="/users", tags=["User"])
+auth_router = APIRouter(prefix="/auth", tags=["Auth"])
+order_router = APIRouter(prefix="/orders", tags=["Order"])
+
+@auth_router.post("/", response_model=UserResponseDTO)
 def create_user(user: UserDTO, db: Session = Depends(get_user_db)):
     try:
         existing_user = db.query(User).filter(User.email == user.email).first()
@@ -30,8 +34,7 @@ def create_user(user: UserDTO, db: Session = Depends(get_user_db)):
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 
-
-@router.post("/login", response_model=Dict[str, str])
+@auth_router.post("/login", response_model=Dict[str, str])
 def login(login_data: LoginDTO, db: Session = Depends(get_user_db)):
     user = db.query(User).filter(User.email == login_data.email).first()
     if not user or not verify_password(login_data.password, user.hashed_password):
@@ -41,15 +44,46 @@ def login(login_data: LoginDTO, db: Session = Depends(get_user_db)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.get("/users", response_model=List[UserDTO])
+@user_router.get("/", response_model=List[UserResponseDTO])
 def list_users(db: Session = Depends(get_user_db)):
-    users = db.query(User).all()
-    return [UserDTO(id=user.id, name=user.name, email=user.email) for user in users]
+    try:
+        users = db.query(User).all()
+        return [UserResponseDTO(id=user.id, name=user.name, email=user.email) for user in users]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
 
 
-@router.get("/orders/{order_id}", response_model=OrderDTO)
-def get_order(order_id: str, db: Session = Depends(get_user_db)):
-    order = db.query(Order).filter(Order.order_id == order_id).first()
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    return OrderDTO(order_id=order.order_id, user_id=order.user_id, details=order.details)
+@user_router.get("/{user_id}", response_model=UserResponseDTO)
+def get_user(user_id: int, db: Session = Depends(get_user_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return UserResponseDTO(id=user.id, name=user.name, email=user.email)
+
+
+@user_router.put("/{user_id}", response_model=UserResponseDTO)
+def update_user(user_id: int, user: UserDTO, db: Session = Depends(get_user_db)):
+    existing_user = db.query(User).filter(User.id == user_id).first()
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    existing_user.name = user.name
+    existing_user.email = user.email
+    db.commit()
+    db.refresh(existing_user)
+
+    return UserResponseDTO(id=existing_user.id, name=existing_user.name, email=existing_user.email)
+
+
+@user_router.delete("/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_user_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.delete(user)
+    db.commit()
+    return {"message": "User deleted"}
+
+router.include_router(user_router)
+router.include_router(auth_router)
+router.include_router(order_router)

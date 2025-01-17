@@ -34,5 +34,6 @@ class OrderRepository:
     def list_orders(self, db: Session) -> List[Order]:
         return db.query(Order).all()  # Ou la logique de récupération des commandes
 
-    def get_order_by_id(self, order_id: str, db: Session) -> Order:
+    def get_order_by_id(self, order_id: int, db: Session) -> Order:
         return db.query(Order).filter(Order.order_id == order_id).first()
+    
