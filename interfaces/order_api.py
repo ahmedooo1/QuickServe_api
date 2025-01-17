@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends 
 from sqlalchemy.orm import Session
 from typing import List
 from infrastructure.db import get_order_db, get_user_db
@@ -11,7 +11,7 @@ router = APIRouter()
 # Repositories
 order_repository = OrderRepository()
 
-order_router = APIRouter(prefix="/orders", tags=["Order"])
+order_router = APIRouter(prefix="/orders", tags=["OrderService"])
 
 # Créer une nouvelle commande
 @order_router.post("/", response_model=OrderDTO)

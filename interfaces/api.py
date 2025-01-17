@@ -5,18 +5,41 @@ from infrastructure.db import get_user_db
 from application.dto import UserDTO, OrderDTO, LoginDTO, UserResponseDTO
 from domain.models import User, Order
 from application.utils import hash_password, verify_password, create_access_token
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from config import SECRET_KEY, ALGORITHM
 
 router = APIRouter()
 
-user_router = APIRouter(prefix="/users", tags=["User"])
+user_router = APIRouter(prefix="/users", tags=["UserService"])
 auth_router = APIRouter(prefix="/auth", tags=["Auth"])
-order_router = APIRouter(prefix="/orders", tags=["Order"])
+order_router = APIRouter(prefix="/orders", tags=["OrderService"])
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_user_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    user = db.query(User).filter(User.email == email).first()
+    if user is None:
+        raise credentials_exception
+    return user
 
 @auth_router.post("/", response_model=UserResponseDTO)
 def create_user(user: UserDTO, db: Session = Depends(get_user_db)):
     try:
         existing_user = db.query(User).filter(User.email == user.email).first()
-        if existing_user:
+        if (existing_user):
             raise HTTPException(status_code=400, detail="Email already registered")
 
         hashed_password = hash_password(user.password)
@@ -62,7 +85,11 @@ def get_user(user_id: int, db: Session = Depends(get_user_db)):
 
 
 @user_router.put("/{user_id}", response_model=UserResponseDTO)
-def update_user(user_id: int, user: UserDTO, db: Session = Depends(get_user_db)):
+def update_user(user_id: int, user: UserDTO, db: Session = Depends(get_user_db), token: str = Depends(oauth2_scheme)):
+    current_user = get_current_user(token, db)
+    if current_user.id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this user")
+
     existing_user = db.query(User).filter(User.id == user_id).first()
     if not existing_user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -76,7 +103,11 @@ def update_user(user_id: int, user: UserDTO, db: Session = Depends(get_user_db))
 
 
 @user_router.delete("/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_user_db)):
+def delete_user(user_id: int, db: Session = Depends(get_user_db), token: str = Depends(oauth2_scheme)):
+    current_user = get_current_user(token, db)
+    if current_user.id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this user")
+
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
