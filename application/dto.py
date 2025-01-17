@@ -20,7 +20,7 @@ class UserResponseDTO(BaseModel):
 
 # DTO pour la commande
 class OrderDTO(BaseModel):
-    order_id: int
+ #   id: int
     user_id: int
     details: str
 

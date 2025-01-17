@@ -18,9 +18,9 @@ class Order(OrderBase):
     __tablename__ = 'orders'
 
     id = Column(Integer, primary_key=True, index=True)
-    order_id = Column(String(255), unique=True, index=True)  # Ajout de la longueur de la colonne order_id
+   # order_id = Column(Integer, unique=True, index=True)  # Ensure order_id is unique and indexed
     user_id = Column(Integer, index=True)
     details = Column(String(255)) 
 
     # Si tu veux une relation avec l'utilisateur, tu peux ajouter la ligne suivante :
-   # user = relationship("User", back_populates="orders")
+    # user = relationship("User", back_populates="orders")
